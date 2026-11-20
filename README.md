@@ -163,6 +163,7 @@ aws --endpoint-url=http://localhost:4566 sqs get-queue-attributes --queue-url ht
 ```
 ---
 
+
 ## 4. Integrante 6 – Diagnóstico, Pruebas y Caos
 
 
@@ -416,3 +417,39 @@ python -m pytest -v
 
 
 Las pruebas unitarias utilizan dependencias simuladas cuando corresponde, para verificar el comportamiento de forma controlada. Las pruebas de integración con LocalStack deben ejecutarse cuando estén disponibles todas las implementaciones y configuraciones necesarias.
+
+# Documentación Técnica — Área 2: Mensajería SQS e Inventario Cloud (Integrante 2)
+
+**Responsable:** Mauricio Jesús Goroso Romano  
+**Rol:** Integrante 2 — Ingeniero de Mensajería e Inventario Cloud  
+**Rama asignada:** `feat/i2-sqs-inventario`  
+
+---
+
+## Área 2 — Mensajería Asíncrona SQS e Infraestructura Demo (Integrante 2 - Mauricio Jesús Goroso Romano)
+
+### 1. Responsabilidad y Alcance Técnico
+El Área 2 provee la **columna vertebral de mensajería desacoplada y el entorno de infraestructura emulada** en LocalStack. Su responsabilidad abarca la configuración segura de clientes Boto3 hacia el endpoint local, la creación idempotente de colas estándar de AWS SQS con política de derivación a *Dead Letter Queue* (`RedrivePolicy`) y backoff exponencial basado en visibilidad, así como el aprovisionamiento convergente de recursos cloud (`node-01` en EC2 y `bucket-01` en S3), el volcado atómico del inventario (`data/inventory.json`) y la inyección controlada de fallas.
+
+### 2. Módulos Asignados
+- `src/fenix/config/settings.py`: Construcción centralizada y segura de clientes Boto3 (`client(service)`). Valida el formato del grupo (`grupoXX`), exige credenciales ficticias (`test`/`test`) y bloquea explícitamente cualquier `AWS_ENDPOINT_URL` que no apunte a `http://localhost:4566` o `http://127.0.0.1:4566`, evitando fugas accidentales hacia AWS real.
+- `src/fenix/services/sqs.py`: Gestión del ciclo de vida de mensajería en colas estándar SQS:
+  - `ensure_queues(prefix)`: Crea de forma idempotente primero la cola de mensajes fallidos (`{prefix}-dlq` con retención de 14 días / `1209600` s), obtiene dinámicamente su `QueueArn` y luego crea o actualiza la cola principal (`{prefix}-events`) con `VisibilityTimeout="45"`, `MessageRetentionPeriod="345600"` (4 días) y `RedrivePolicy` serializada con `maxReceiveCount="3"`.
+  - `publish`, `receive`, `acknowledge`: Publicación JSON con atributo `EventId`, *Long Polling* (`WaitTimeSeconds=10`) solicitando `ApproximateReceiveCount`, y eliminación explícita mediante `ReceiptHandle`.
+  - `retry_later(url, message)`: Implementa backoff exponencial acotado (`min(30, 2 ** count)`) ajustando `change_message_visibility` sobre la entrega actual sin duplicar mensajes ni reiniciar el contador de recepciones de la `RedrivePolicy`.
+- `src/fenix/services/demo.py`: Aprovisionamiento convergente de infraestructura mock e inyección de fallas:
+  - `setup_demo(inventory_path)`: Despliega de forma idempotente una instancia EC2 (`node-01`, tipo `t3.micro`) y un bucket S3 (`bucket-01`) etiquetados con `Project` y `Group` (reutilizando recursos existentes si ya fueron creados) y persiste de forma atómica el mapa resultante en `data/inventory.json`.
+  - `fault(resource_id, inventory_path)`: Simula fallas reales sobre los recursos registrados en el inventario (detiene la instancia EC2 con `stop_instances` o elimina el etiquetado del bucket S3 con `delete_bucket_tagging`), lanzando `InventoryError` ante recursos desconocidos.
+- `tests/test_i2_sqs_demo.py`: Suite de pruebas unitarias aisladas con `moto` que valida la creación idempotente de colas y `RedrivePolicy`, el cálculo y aplicación del backoff acotado en `retry_later`, la idempotencia de `setup_demo` y el comportamiento de `fault`.
+
+### 3. Comandos de Demostración y Verificación
+
+#### A. Ejecución de la Suite Unitaria y Auditoría Estática
+```powershell
+# Ejecutar pruebas unitarias del Área 2 con Moto (colas, DLQ, backoff, EC2/S3 y fallas)
+python -m pytest tests/test_i2_sqs_demo.py -v
+
+# Auditoría estática con Flake8 sobre los módulos del Área 2
+flake8 src/fenix/config/settings.py src/fenix/services/sqs.py src/fenix/services/demo.py tests/test_i2_sqs_demo.py
+
+
