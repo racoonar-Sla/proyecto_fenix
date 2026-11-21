@@ -757,6 +757,7 @@ python -m pytest -v
 
 Las pruebas unitarias utilizan dependencias simuladas cuando corresponde, para verificar el comportamiento de forma controlada. Las pruebas de integración con LocalStack deben ejecutarse cuando estén disponibles todas las implementaciones y configuraciones necesarias.
 
+
 # Documentación Técnica — Área 2: Mensajería SQS e Inventario Cloud (Integrante 2)
 
 **Responsable:** Mauricio Jesús Goroso Romano  
