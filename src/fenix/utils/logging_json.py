@@ -45,22 +45,15 @@ def gzip_name(name: str) -> str:
 
 
 def gzip_rotate(source: str, dest: str) -> None:
-    """Comprime y luego elimina el histórico original.
-
-    Args:
-        source: Archivo cerrado por el manejador.
-        dest: Ruta del archivo comprimido.
-    Returns:
-        None.
-    Raises:
-        OSError: Si falla la lectura, compresión o eliminación.
-    Notes:
-        Esta versión didáctica no promete publicación atómica del gzip.
-    """
-    with open(source, "rb") as origin, gzip.open(dest, "wb") as target:
-        shutil.copyfileobj(origin, target)  # Procesa el contenido sin leerlo entero.
-    os.remove(source)  # Solo se borra después del cierre exitoso del gzip.
-
+    """Comprime de forma idempotente y luego elimina el histórico original."""
+    if not os.path.exists(source):
+        return  # Idempotencia: si ya fue procesado o no existe, no falla.
+    tmp_dest = f"{dest}.tmp"
+    with open(source, "rb") as origin, gzip.open(tmp_dest, "wb") as target:
+        shutil.copyfileobj(origin, target)
+    os.replace(tmp_dest, dest)  # Publicación atómica del archivo comprimido.
+    os.remove(source)
+    
 
 def setup(name: str) -> tuple[logging.Logger, QueueListener]:
     """Inicia el pipeline JSON en un archivo exclusivo de este proceso.

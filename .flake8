@@ -1,3 +1,7 @@
 [flake8]
 max-line-length = 120
 extend-ignore = E501
+
+
+flake8 src/fenix/utils/logging_json.py src/fenix/services/notifications.py
+python -m pytest tests/ -k "log or notif" -v
