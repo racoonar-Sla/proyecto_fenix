@@ -415,7 +415,7 @@ No se debe borrar el inventario mientras existan recursos que dependan de sus id
 
 ## 16. Video de defensa
 
-**Enlace al video:** pendiente de agregar.
+**Enlace al video:** [Ver defensa grupal](https://drive.google.com/file/d/1m-sY7oNHO6HCSOODoEg72JFEJWyr9w01/view?usp=sharing)
 
 Cada integrante debe incluir su intervención y explicar su responsabilidad, las decisiones técnicas y las pruebas correspondientes.
 
